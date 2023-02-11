@@ -1,7 +1,7 @@
 //AntiServerFull (spoofed ip) fix by BartekDVD & Gamer_Z
 //Thanks to Kurta999 and GWMPT for help
 //Works ONLY on SA-MP 0.3z-R4 (windows & linux 500p & linux 1000p)
-//full updated to 0.3.7 by AlexDrift
+//full updated to 0.3.7 by AlexDrift vk.com/alexdrift1337, game-mp.ru
 #include <set>
 #include <time.h>
 #include <vector>
@@ -110,20 +110,6 @@ enum PacketEnumeration
 	ID_REMOTE_EXISTING_CONNECTION,
 	ID_REMOTE_STATIC_DATA,
 	ID_ADVERTISE_SYSTEM = 55,
-
-	ID_PLAYER_SYNC = 207,
-	ID_MARKERS_SYNC = 208,
-	ID_UNOCCUPIED_SYNC = 209,
-	ID_TRAILER_SYNC = 210,
-	ID_PASSENGER_SYNC = 211,
-	ID_SPECTATOR_SYNC = 212,
-	ID_AIM_SYNC = 203,
-	ID_VEHICLE_SYNC = 200,
-	ID_RCON_COMMAND = 201,
-	ID_RCON_RESPONCE = 202,
-	ID_WEAPONS_UPDATE = 204,
-	ID_STATS_UPDATE = 205,
-	ID_BULLET_SYNC = 206,
 };
 
 /*
@@ -466,6 +452,27 @@ void PLUGIN_STDCALL DetouredProcessNetworkPacket(unsigned int binaryAddress, uns
 	//sampgdk::logprintf("PacketID: %d, IP: %s, PORT: %d, Data: %d, Length: %d", data[0], inet_ntoa(in), htons(port), data[1], length);
 	if (binaryAddress != 0x100007F)
 	{
+		if ((unsigned char)data[0] == 24)
+		{
+		    if (data[1] == -1)
+		    {
+			return; //отбросим не верный системный пакет
+		    }
+		}
+		if ((unsigned char)data[0] == -29)
+		{
+		    if (length != 3)
+		    {
+			return; //отбросим не верный системный пакет
+		    }
+		}
+		if ((unsigned char)data[0] == -27)
+		{
+		    if (data[1] != 3)
+		    {
+			return;
+		    }
+		}
 		unsigned int ip_data[2] =
 		{
 			asfa_swapbytes(binaryAddress),
