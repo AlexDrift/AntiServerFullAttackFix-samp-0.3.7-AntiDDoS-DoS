@@ -11,7 +11,7 @@ Installation
 
 Linux:
 
-    wget https://github.com/grasmanek94/AntiServerFullAttackFix/archive/master.zip
+    download archive
     unzip master.zip
     cd ./AntiServerFullAttackFix-master
     make AntiServerFullFix
