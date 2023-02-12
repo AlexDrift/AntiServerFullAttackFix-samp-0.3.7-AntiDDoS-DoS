@@ -1,11 +1,13 @@
 //AntiServerFull (spoofed ip) fix by BartekDVD & Gamer_Z
 //Thanks to Kurta999 and GWMPT for help
 //Works ONLY on SA-MP 0.3z-R4 (windows & linux 500p & linux 1000p)
-//full updated to 0.3.7 by AlexDrift vk.com/alexdrift1337, game-mp.ru
+//full updated to 0.3.7 by AlexDrift
 #include <set>
 #include <time.h>
 #include <vector>
 #include <string>
+#include <time.h>
+
 
 
 #ifdef _WIN32
@@ -449,44 +451,46 @@ void PLUGIN_STDCALL DetouredProcessNetworkPacket(unsigned int binaryAddress, uns
 	static char ping[5] = { ID_PING, 0, 0, 0, 0 };
 	in_addr in;
 	in.s_addr = binaryAddress;
+
 	//sampgdk::logprintf("PacketID: %d, IP: %s, PORT: %d, Data: %d, Length: %d", data[0], inet_ntoa(in), htons(port), data[1], length);
 	if (binaryAddress != 0x100007F)
 	{
 		if ((unsigned char)data[0] == 24)
 		{
-		    if (data[1] == -1)
-		    {
-			return; //отбросим не верный системный пакет
-		    }
+			if (data[1] == -1)
+			{
+				return;
+			}
 		}
 		if ((unsigned char)data[0] == -29)
 		{
-		    if (length != 3)
-		    {
-			return; //отбросим не верный системный пакет
-		    }
+			if (length != 3)
+			{
+				return;
+			}
 		}
 		if ((unsigned char)data[0] == -27)
 		{
-		    if (data[1] != 3)
-		    {
-			return;
-		    }
+			if (data[1] != 3)
+			{
+				return; 
+			} 
 		}
-		unsigned int ip_data[2] =
-		{
-			asfa_swapbytes(binaryAddress),
-			port
-		};
-		//check if the ip is already "authenticated"
+			
+		
+		
+	
+		unsigned int ip_data[2] = { asfa_swapbytes(binaryAddress), port };
+		//check if the ip is already "authenticated" | проверьте, является ли ip-адрес уже "аутентифицированным"
 		if (ip_whitelist.find(*(unsigned long long*)ip_data) == ip_whitelist.end())
 		{
 			//if not, check if this is an authentication request, if yes and the correct code is bounced add the ip to the whitelist
+			//если нет, проверьте, является ли это запросом на аутентификацию, если да и правильный код отправлен, добавьте ip в белый список
 			if (data[0] == ID_PONG && IsGoodPongLength(length) && (*(unsigned long*)(data + 1)) == _final_security_code(binaryAddress, port))
 			{
 				ip_whitelist.insert(*(unsigned long long*)ip_data);
 			}
-			else//send a ping with the authentication code
+			else//send a ping with the authentication code | отправьте запрос с кодом аутентификации
 			{
 				(*(int*)(ping + 1)) = _final_security_code(binaryAddress, port);
 				RealSocketLayerSendTo((void*)pSocketLayerObject, *pRakServerSocket, (const char*)ping, 5, binaryAddress, port);
@@ -495,6 +499,7 @@ void PLUGIN_STDCALL DetouredProcessNetworkPacket(unsigned int binaryAddress, uns
 		}
 	}
 	//if everything went allright, only machines that are alive can get to this point
+	//если все прошло хорошо, только живые машины могут добраться до этой точки
 	RealProcessNetworkPacket(binaryAddress, port, data, length, rakPeer);
 }
 //////////////////////////////////////////////////////
@@ -520,7 +525,9 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 SAMPGDK_CALLBACK(bool, OnGameModeInit())
 {
 	sampgdk::logprintf("Anti ip spoofing | requests connection cookie & incoming connection | loaded.");
+	#ifdef linux
 	system("setenforce 0"); //SELINUX DISABLED
+	#endif
 	static bool doubleinitprotection = true;
 	if (doubleinitprotection)
 	{
@@ -564,6 +571,11 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 	return true;
 }
 
+SAMPGDK_CALLBACK(bool, OnGameModeExit())
+{
+	return true;
+}
+
 SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_address, int port))
 {
 	unsigned int ip_data[2] =
@@ -576,6 +588,17 @@ SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_addres
 		ip_whitelist.erase(PlayerIPSET[playerid]);
 
 	PlayerIPSET[playerid] = *(unsigned long long*)ip_data;
+
+	char Flood_ip[MAX_PLAYERS][17];
+	int Flood_time[MAX_PLAYERS];
+	if (!strcmp(ip_address, Flood_ip[playerid]))
+	{
+		if (GetTickCount() - Flood_time[playerid] < 6000)
+		{
+			BlockIpAddress(ip_address, 90 * 1000);
+		}
+	}
+	Flood_time[playerid] = GetTickCount();
 	return true;
 }
 
