@@ -60,6 +60,9 @@ void* pRakServer = NULL;
 SOCKET* pRakServerSocket;
 void* pSocketLayerObject;
 
+int Flood_time[MAX_PLAYERS];
+char Flood_ip[MAX_PLAYERS][16 + 1];
+
 extern void* pAMXFunctions;
 void** gppData = 0;
 
@@ -589,22 +592,25 @@ SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_addres
 
 	PlayerIPSET[playerid] = *(unsigned long long*)ip_data;
 
-	char Flood_ip[MAX_PLAYERS][17];
-	int Flood_time[MAX_PLAYERS];
+	
 	if (!strcmp(ip_address, Flood_ip[playerid]))
 	{
 		if (GetTickCount() - Flood_time[playerid] < 6000)
 		{
 			BlockIpAddress(ip_address, 90 * 1000);
+			return false;
 		}
 	}
 	Flood_time[playerid] = GetTickCount();
+	sprintf(Flood_ip[playerid], "%s", ip_address);
 	return true;
 }
 
 SAMPGDK_CALLBACK(bool, OnPlayerConnect(int playerid))
 {
 	ip_whitelist_online.insert(PlayerIPSET[playerid]);
+	memset(Flood_ip[playerid], 0, sizeof(Flood_ip[playerid])); 
+	Flood_time[playerid] = 0;
 	return true;
 }
 
@@ -613,6 +619,8 @@ SAMPGDK_CALLBACK(bool, OnPlayerDisconnect(int playerid, int reason))
 	ip_whitelist_online.erase(PlayerIPSET[playerid]);
 	ip_whitelist.erase(PlayerIPSET[playerid]);
 	PlayerIPSET[playerid] = 0;
+	memset(Flood_ip[playerid], 0, sizeof(Flood_ip[playerid])); 
+	Flood_time[playerid] = 0;
 	return true;
 }
 
