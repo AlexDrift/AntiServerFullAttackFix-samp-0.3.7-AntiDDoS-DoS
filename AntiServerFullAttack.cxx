@@ -43,7 +43,28 @@ typedef unsigned char BYTE;
 
 #endif
 
+
 #include "sampgdk.h"
+
+struct PlayerID
+{
+	///The peer address from inet_addr.
+	unsigned int binaryAddress;
+	///The port number
+	unsigned short port;
+
+	PlayerID& operator = (const PlayerID& input)
+	{
+		binaryAddress = input.binaryAddress;
+		port = input.port;
+		return *this;
+	}
+
+	bool operator==(const PlayerID& right) const;
+	bool operator!=(const PlayerID& right) const;
+	bool operator > (const PlayerID& right) const;
+	bool operator < (const PlayerID& right) const;
+};
 
 typedef int(PLUGIN_THISCALL* FPTR_SocketLayerSendTo)(void* pSocketLayerObj, SOCKET s, const char* data, int length, unsigned int binaryAddress, unsigned short port);
 FPTR_SocketLayerSendTo RealSocketLayerSendTo;
@@ -51,8 +72,12 @@ FPTR_SocketLayerSendTo RealSocketLayerSendTo;
 typedef void(PLUGIN_STDCALL* FPTR_ProcessNetworkPacket)(unsigned int binaryAddress, unsigned short port, const char* data, int length, void* rakPeer);
 FPTR_ProcessNetworkPacket RealProcessNetworkPacket;
 
+typedef void(PLUGIN_STDCALL* FPTR_HandleSocketReceiveFromConnectedPlayer)(void* _this, const char* data, int length, PlayerID playerId, void* messageHandlerList, int MTUSize);
+FPTR_HandleSocketReceiveFromConnectedPlayer RealHandleSocketReceiveFromConnectedPlayer;
+
 //int SendTo(SOCKET s, const char* data, int length, char ip[16], unsigned short port); //0x00463450 037 r2
 
+DWORD iRealHandleSocketReceiveFromConnectedPlayer;
 DWORD iRealProcessNetworkPacket;
 DWORD iSocketLayerSendTo;
 
@@ -445,8 +470,55 @@ DWORD FindPattern(char* pattern, char* mask)
 	{
 		if (memory_compare((BYTE*)(address + i), (BYTE*)pattern, mask))
 			return (DWORD)(address + i);
-	}
+	} 
 	return 0;
+}
+
+void PLUGIN_STDCALL HandleSocketReceiveFromConnectedPlayer(void* _this, const char* data, int length, PlayerID playerId, void* messageHandlerList, int MTUSize)
+{
+	in_addr in;
+	in.s_addr = playerId.binaryAddress;
+	//sampgdk::logprintf("PacketID: %d, IP: %s, PORT: %d, Data: %d, Length: %d, mHL: %d, MTU: %d", data[0], inet_ntoa(in), playerId.port, data[1], length, messageHandlerList, MTUSize);
+	
+	if ((unsigned char)data[0] == 0)
+	{
+		if (length != 77 && length != 5 && MTUSize != 576)
+		{
+			return;
+		}
+	}
+	if ((unsigned char)data[0] == -29)
+	{
+		if (length != 3 && MTUSize != 576)
+		{
+			return;
+		}
+	}
+	if ((unsigned char)data[0] == -25)
+	{
+		if (data[1] != 3 && MTUSize != 576)
+		{
+			return;
+		}
+	}
+	if ((unsigned char)data[0] == -30)
+	{
+		if (data[1] != 5 && MTUSize != 576)
+		{
+			return;
+		}
+	}
+	if ((unsigned char)data[0] == 1)
+	{
+		if (length != 30 && length != 77 && MTUSize != 576)
+		{
+			return;
+		}
+	}
+
+
+
+	RealHandleSocketReceiveFromConnectedPlayer(_this, data, length, playerId, messageHandlerList, MTUSize);
 }
 
 void PLUGIN_STDCALL DetouredProcessNetworkPacket(unsigned int binaryAddress, unsigned short port, const char* data, int length, void* rakPeer)
@@ -562,9 +634,11 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 
 		int iSocketLayerSendTo = 0x808ECB0; //updated to 037 R2
 		int iRealProcessNetworkPacket = 0x8073280; //updated to 037 R2
+		int iRealHandleSocketReceiveFromConnectedPlayer = 0x8080C60;
 
 		RealSocketLayerSendTo = reinterpret_cast<FPTR_SocketLayerSendTo>(iSocketLayerSendTo);
 		RealProcessNetworkPacket = reinterpret_cast<FPTR_ProcessNetworkPacket>(Detour((unsigned char*)iRealProcessNetworkPacket, (unsigned char*)DetouredProcessNetworkPacket, 6));//or 5?
+		RealHandleSocketReceiveFromConnectedPlayer = reinterpret_cast<FPTR_HandleSocketReceiveFromConnectedPlayer>(Detour((unsigned char*)iRealHandleSocketReceiveFromConnectedPlayer, (unsigned char*)HandleSocketReceiveFromConnectedPlayer, 6));//or 5?
 
 		pRakServerSocket = (SOCKET*)((char*)pRakServer + 0xC0E);
 		pSocketLayerObject = (void*)0x081A2720;//updated to 037 R2
@@ -592,7 +666,6 @@ SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_addres
 
 	PlayerIPSET[playerid] = *(unsigned long long*)ip_data;
 
-	
 	if (!strcmp(ip_address, Flood_ip[playerid]))
 	{
 		if (GetTickCount() - Flood_time[playerid] < 6000)
@@ -609,7 +682,7 @@ SAMPGDK_CALLBACK(bool, OnIncomingConnection(int playerid, const char * ip_addres
 SAMPGDK_CALLBACK(bool, OnPlayerConnect(int playerid))
 {
 	ip_whitelist_online.insert(PlayerIPSET[playerid]);
-	memset(Flood_ip[playerid], 0, sizeof(Flood_ip[playerid])); 
+	memset(Flood_ip[playerid], 0, sizeof(Flood_ip[playerid]));
 	Flood_time[playerid] = 0;
 	return true;
 }
@@ -619,7 +692,7 @@ SAMPGDK_CALLBACK(bool, OnPlayerDisconnect(int playerid, int reason))
 	ip_whitelist_online.erase(PlayerIPSET[playerid]);
 	ip_whitelist.erase(PlayerIPSET[playerid]);
 	PlayerIPSET[playerid] = 0;
-	memset(Flood_ip[playerid], 0, sizeof(Flood_ip[playerid])); 
+	memset(Flood_ip[playerid], 0, sizeof(Flood_ip[playerid]));
 	Flood_time[playerid] = 0;
 	return true;
 }
