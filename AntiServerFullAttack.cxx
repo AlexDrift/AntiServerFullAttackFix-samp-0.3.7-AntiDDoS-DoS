@@ -474,53 +474,6 @@ DWORD FindPattern(char* pattern, char* mask)
 	return 0;
 }
 
-void PLUGIN_STDCALL HandleSocketReceiveFromConnectedPlayer(void* _this, const char* data, int length, PlayerID playerId, void* messageHandlerList, int MTUSize)
-{
-	in_addr in;
-	in.s_addr = playerId.binaryAddress;
-	//sampgdk::logprintf("PacketID: %d, IP: %s, PORT: %d, Data: %d, Length: %d, mHL: %d, MTU: %d", data[0], inet_ntoa(in), playerId.port, data[1], length, messageHandlerList, MTUSize);
-	
-	if ((unsigned char)data[0] == 0)
-	{
-		if (length != 77 && length != 5 && MTUSize != 576)
-		{
-			return;
-		}
-	}
-	if ((unsigned char)data[0] == -29)
-	{
-		if (length != 3 && MTUSize != 576)
-		{
-			return;
-		}
-	}
-	if ((unsigned char)data[0] == -25)
-	{
-		if (data[1] != 3 && MTUSize != 576)
-		{
-			return;
-		}
-	}
-	if ((unsigned char)data[0] == -30)
-	{
-		if (data[1] != 5 && MTUSize != 576)
-		{
-			return;
-		}
-	}
-	if ((unsigned char)data[0] == 1)
-	{
-		if (length != 30 && length != 77 && MTUSize != 576)
-		{
-			return;
-		}
-	}
-
-
-
-	RealHandleSocketReceiveFromConnectedPlayer(_this, data, length, playerId, messageHandlerList, MTUSize);
-}
-
 void PLUGIN_STDCALL DetouredProcessNetworkPacket(unsigned int binaryAddress, unsigned short port, const char* data, int length, void* rakPeer)
 {
 	static char ping[5] = { ID_PING, 0, 0, 0, 0 };
