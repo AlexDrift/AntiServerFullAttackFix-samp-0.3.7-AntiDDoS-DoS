@@ -474,6 +474,77 @@ DWORD FindPattern(char* pattern, char* mask)
 	return 0;
 }
 
+#ifdef linux
+uint32_t GetTickCount()
+{
+	enum
+	{
+#ifdef CLOCK_BOOTTIME
+		boot_time_id = CLOCK_BOOTTIME
+#else
+		boot_time_id = 7
+#endif
+	};
+	struct timespec spec;
+	clock_gettime(boot_time_id, &spec);
+	return (uint32_t)(((uint64_t)spec.tv_sec) * 1000 + ((uint64_t)spec.tv_nsec) / 1000000);
+}
+#endif
+
+void PLUGIN_STDCALL HandleSocketReceiveFromConnectedPlayer(void* _this, const char* data, int length, PlayerID playerId, void* messageHandlerList, int MTUSize)
+{
+	in_addr in;
+	in.s_addr = playerId.binaryAddress;
+	//sampgdk::logprintf("PacketID: %d, IP: %s, PORT: %d, Data: %d, Length: %d, mHL: %d, MTU: %d", data[0], inet_ntoa(in), playerId.port, data[1], length, messageHandlerList, MTUSize);
+	if (playerId.binaryAddress != 0x100007F)
+	{
+		static int timer = 0;
+		if (GetTickCount() - timer > 150)
+		{
+			if ((unsigned char)data[0] == 0)
+			{
+				if (length != 77 && length != 5 && MTUSize != 576)
+				{
+					return;
+				}
+			}
+			if ((unsigned char)data[0] == -29)
+			{
+				if (length != 3 && MTUSize != 576)
+				{
+					return;
+				}
+			}
+			if ((unsigned char)data[0] == -25)
+			{
+				if (data[1] != 3 && MTUSize != 576)
+				{
+					return;
+				}
+			}
+			if ((unsigned char)data[0] == -30)
+			{
+				if (data[1] != 5 && MTUSize != 576)
+				{
+					return;
+				}
+			}
+			if ((unsigned char)data[0] == 1)
+			{
+				if (length != 30 && length != 77 && MTUSize != 576)
+				{
+					return;
+				}
+			}
+			timer = GetTickCount();
+		}
+	}
+
+
+
+	RealHandleSocketReceiveFromConnectedPlayer(_this, data, length, playerId, messageHandlerList, MTUSize);
+}
+
 void PLUGIN_STDCALL DetouredProcessNetworkPacket(unsigned int binaryAddress, unsigned short port, const char* data, int length, void* rakPeer)
 {
 	static char ping[5] = { ID_PING, 0, 0, 0, 0 };
@@ -553,6 +624,7 @@ PLUGIN_EXPORT void PLUGIN_CALL ProcessTick()
 SAMPGDK_CALLBACK(bool, OnGameModeInit())
 {
 	sampgdk::logprintf("Anti ip spoofing | requests connection cookie & incoming connection | loaded.");
+	sampgdk::logprintf("При поддержке framehost.ru");
 	#ifdef linux
 	system("setenforce 0"); //SELINUX DISABLED
 	#endif
@@ -560,20 +632,19 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 	if (doubleinitprotection)
 	{
 		doubleinitprotection = false;
-
 		srand((unsigned int)time(NULL));
-
 		generate_shuffles(0, 0);
-
 		SetTimer(15000, true, generate_shuffles, 0);
-
 		SetTimer(60000, true, CleanupUnusedWhitelistSlots, 0);
-
 		int(*pfn_GetRakServer)(void) = (int(*)(void))gppData[PLUGIN_DATA_RAKSERVER];
 		pRakServer = (void*)pfn_GetRakServer();
-
 #ifdef _WIN32
-
+		//int __cdecl sub_80730F0(int a1, int a2, __int16 a3, int a4) ХЗ
+		//int __cdecl sub_808EB30(int a1, int fd, int a3, int a4) RECVFROM
+		//int __cdecl sub_808E950(int a1, __int16 a2, int a3, char *cp) КЛЮЧИВЫЕ ДЛЯ ПОИСКА В ВИНДОВС SOCKET SocketLayer::CreateBoundSocket(short unsigned int, bool, const char*)
+		//int __cdecl sub_806B2C0(int a1, char *s, int a3) Messages in Send buffer: %u\n
+		//signed int __cdecl sub_80A3D50(int *a1, int a2, int a3, int a4, int a5) OnClientCheckResponse
+		//signed int __cdecl sub_80E9610(int a1, int a2) SendClientCheck
 		int iRealProcessNetworkPacket = FindPattern("\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x81\xEC\x5C", "xxx????xxxxxxxxxxxxxxxxx");//0x00456E60; updated to 037 R2
 		int iSocketLayerSendTo = FindPattern("\x83\xEC\x10\x55\x8B\x6C\x24\x18\x83\xFD\xFF", "xxxxxxxxxxx");//0x004633D0; updated to 037 R2
 
@@ -584,7 +655,6 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 		pSocketLayerObject = (void*)0x004F0BD1;	//1000p	//UNK_4F0BD1 updated to 037 R2
 		//////////////////////////////////////////////////////
 #else
-
 		int iSocketLayerSendTo = 0x808ECB0; //updated to 037 R2
 		int iRealProcessNetworkPacket = 0x8073280; //updated to 037 R2
 		int iRealHandleSocketReceiveFromConnectedPlayer = 0x8080C60;
