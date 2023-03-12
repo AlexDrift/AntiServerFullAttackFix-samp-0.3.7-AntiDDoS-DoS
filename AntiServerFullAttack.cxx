@@ -639,12 +639,7 @@ SAMPGDK_CALLBACK(bool, OnGameModeInit())
 		int(*pfn_GetRakServer)(void) = (int(*)(void))gppData[PLUGIN_DATA_RAKSERVER];
 		pRakServer = (void*)pfn_GetRakServer();
 #ifdef _WIN32
-		//int __cdecl sub_80730F0(int a1, int a2, __int16 a3, int a4) ХЗ
-		//int __cdecl sub_808EB30(int a1, int fd, int a3, int a4) RECVFROM
-		//int __cdecl sub_808E950(int a1, __int16 a2, int a3, char *cp) КЛЮЧИВЫЕ ДЛЯ ПОИСКА В ВИНДОВС SOCKET SocketLayer::CreateBoundSocket(short unsigned int, bool, const char*)
-		//int __cdecl sub_806B2C0(int a1, char *s, int a3) Messages in Send buffer: %u\n
-		//signed int __cdecl sub_80A3D50(int *a1, int a2, int a3, int a4, int a5) OnClientCheckResponse
-		//signed int __cdecl sub_80E9610(int a1, int a2) SendClientCheck
+		
 		int iRealProcessNetworkPacket = FindPattern("\x6A\xFF\x68\x00\x00\x00\x00\x64\xA1\x00\x00\x00\x00\x50\x64\x89\x25\x00\x00\x00\x00\x81\xEC\x5C", "xxx????xxxxxxxxxxxxxxxxx");//0x00456E60; updated to 037 R2
 		int iSocketLayerSendTo = FindPattern("\x83\xEC\x10\x55\x8B\x6C\x24\x18\x83\xFD\xFF", "xxxxxxxxxxx");//0x004633D0; updated to 037 R2
 
