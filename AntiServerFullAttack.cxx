@@ -554,13 +554,6 @@ void PLUGIN_STDCALL DetouredProcessNetworkPacket(unsigned int binaryAddress, uns
 	//sampgdk::logprintf("PacketID: %d, IP: %s, PORT: %d, Data: %d, Length: %d", data[0], inet_ntoa(in), htons(port), data[1], length);
 	if (binaryAddress != 0x100007F)
 	{
-		if ((unsigned char)data[0] == 24)
-		{
-			if (data[1] == -1)
-			{
-				return;
-			}
-		}
 		if ((unsigned char)data[0] == -29)
 		{
 			if (length != 3)
